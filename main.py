@@ -13,12 +13,17 @@ LINE = "Twelve yoghurts, no spoon, no bag. The bagging area has a dress code \u2
 
 def main() -> int:
     # Gate self-check, mirroring the sealed scorer: 1-200 chars,
-    # single line, UTF-8, not only whitespace.
+    # single line, UTF-8, not only whitespace. Also reject any
+    # leading or trailing whitespace: the entry must be exactly
+    # the one line, with nothing padding either end.
     if not (1 <= len(LINE) <= 200):
         print(f"line is {len(LINE)} chars, must be 1-200", file=sys.stderr)
         return 1
     if "\n" in LINE or "\r" in LINE:
         print("line must be a single line", file=sys.stderr)
+        return 1
+    if LINE != LINE.strip():
+        print("line must not have leading or trailing whitespace", file=sys.stderr)
         return 1
     if not LINE.strip():
         print("line must not be only whitespace", file=sys.stderr)
@@ -29,11 +34,20 @@ def main() -> int:
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(LINE)
     # Post-write check: what landed on disk must be exactly LINE,
-    # with no trailing newline added by the writer.
+    # with no trailing newline added by the writer. Re-gate the
+    # bytes actually written, not just the in-memory constant:
+    # length, single-line, and no leading/trailing whitespace
+    # are all re-checked on the read-back content.
     with open(path, "r", encoding="utf-8", newline="") as f:
         written = f.read()
     if written != LINE:
         print("written entry.txt does not match LINE exactly", file=sys.stderr)
+        return 1
+    if not (1 <= len(written) <= 200) or "\n" in written or "\r" in written:
+        print("read-back entry.txt fails the single-line length gate", file=sys.stderr)
+        return 1
+    if written != written.strip() or not written.strip():
+        print("read-back entry.txt has leading/trailing whitespace", file=sys.stderr)
         return 1
     return 0
 
